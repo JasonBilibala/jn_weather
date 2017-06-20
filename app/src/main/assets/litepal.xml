@@ -1,0 +1,11 @@
+<liteppal>
+    <dbname value="JnWeather" />
+
+    <version value="1" />
+
+    <list>
+        <mapping class="com.jnweather.android.db.Province" />
+        <mapping class="com.jnweather.android.db.City" />
+        <mapping class="com.jnweather.android.db.County" />
+    </list>
+</liteppal>
