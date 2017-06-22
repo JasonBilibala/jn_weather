@@ -1,9 +1,11 @@
-package com.jnweather.android.db;
+package com.jnweather.android;
 
+import android.app.Fragment;
 import android.app.ProgressDialog;
 import android.os.Bundle;
 import android.support.annotation.Nullable;
-import android.support.v4.app.Fragment;
+
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -15,6 +17,9 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.jnweather.android.R;
+import com.jnweather.android.db.City;
+import com.jnweather.android.db.County;
+import com.jnweather.android.db.Province;
 import com.jnweather.android.util.HttpUtil;
 import com.jnweather.android.util.Utility;
 
@@ -90,9 +95,9 @@ public class ChooseAreaFragment extends Fragment {
         titleText = (TextView) view.findViewById(R.id.title_text);
         backButton = (Button) view.findViewById(R.id.back_button);
         listView = (ListView) view.findViewById(R.id.list_view);
-        adapter = new ArrayAdapter<String>(getContext(), android.R.layout.simple_list_item_1, dataList);
+        adapter = new ArrayAdapter<>(getContext(), android.R.layout.simple_list_item_1, dataList);
         listView.setAdapter(adapter);
-        return super.onCreateView(inflater, container, savedInstanceState);
+        return view;
     }
 
     @Override
@@ -101,19 +106,22 @@ public class ChooseAreaFragment extends Fragment {
         listView.setOnItemClickListener(((parent, view, position, id) -> {
             if (currentLevel == LEVEL_PROVINCE) {
                 selectProvince = provinceList.get(position);
+                queryCity();
             } else if (currentLevel == LEVEL_CITY) {
                 selectCity = cityList.get(position);
+                queryCounty();
             }
-
-            backButton.setOnClickListener(v -> {
-                if (currentLevel == LEVEL_CITY) {
-                    queryProvince();
-                } else if (currentLevel == LEVEL_COUNTY) {
-                    queryCity();
-                }
-            });
-            queryProvince();
         }));
+
+        backButton.setOnClickListener(v -> {
+            if (currentLevel == LEVEL_CITY) {
+                queryProvince();
+            } else if (currentLevel == LEVEL_COUNTY) {
+                queryCity();
+            }
+        });
+
+        queryProvince();
     }
 
     private void queryProvince() {
@@ -138,7 +146,7 @@ public class ChooseAreaFragment extends Fragment {
     private void queryCity() {
         titleText.setText(selectProvince.getProvinceName());
         backButton.setVisibility(View.VISIBLE);
-        cityList = DataSupport.where("provinceId = ?", String.valueOf(selectProvince.getProvinceCode())).find(City.class);
+        cityList = DataSupport.where("provinceId = ?", String.valueOf(selectProvince.getId())).find(City.class);
 
         if (cityList == null || cityList.size() == 0) {
             String address = "http://guolin.tech/api/china/" + selectProvince.getProvinceCode();
@@ -157,10 +165,10 @@ public class ChooseAreaFragment extends Fragment {
     private void queryCounty() {
         titleText.setText(selectCity.getCityName());
         backButton.setVisibility(View.VISIBLE);
-        countyList = DataSupport.where("cityId = ?", String.valueOf(selectProvince.getProvinceCode())).find(County.class);
+        countyList = DataSupport.where("cityId = ?", String.valueOf(selectCity.getId())).find(County.class);
 
-        if (cityList == null || cityList.size() == 0) {
-            String address = "http://guolin.tech/api/china/" + selectProvince.getProvinceCode();
+        if (countyList == null || countyList.size() == 0) {
+            String address = "http://guolin.tech/api/china/" + selectProvince.getProvinceCode() + "/" + selectCity.getCityCode();
             queryFromServer(address, "county");
         } else {
             dataList.clear();
@@ -190,24 +198,29 @@ public class ChooseAreaFragment extends Fragment {
                 boolean result = false;
 
                 if ("province".equals(type)) {
+                    Log.d("queryFromServer", "province ");
                     result = Utility.handleProvinceResponse(responseText);
                 } else if ("city".equals(type)) {
+                    Log.d("queryFromServer", "city ");
                     result = Utility.handleCityResponse(responseText, selectProvince.getId());
                 } else if ("county".equals(type)) {
+                    Log.d("queryFromServer", "county ");
                     result = Utility.handleCountyResponse(responseText, selectCity.getId());
                 }
-
                 if (result) {
                     getActivity().runOnUiThread(() -> {
                         closeProgressDialog();
                         if ("province".equals(type)) {
                             queryProvince();
-                        } else if ("county".equals(type)) {
+                        } else if ("city".equals(type)) {
                             queryCity();
                         } else if ("county".equals(type)) {
                             queryCounty();
                         }
                     });
+                } else{
+                    closeProgressDialog();
+                    Toast.makeText(getContext(), "加载失败...", Toast.LENGTH_SHORT).show();
                 }
             }
         });
