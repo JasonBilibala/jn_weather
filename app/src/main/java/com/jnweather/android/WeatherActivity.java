@@ -1,16 +1,20 @@
 package com.jnweather.android;
 
 import android.content.SharedPreferences;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.preference.PreferenceManager;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
+import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.bumptech.glide.Glide;
 import com.jnweather.android.gson.Forecast;
 import com.jnweather.android.gson.Weather;
 import com.jnweather.android.util.HttpUtil;
@@ -19,6 +23,7 @@ import com.jnweather.android.util.Utility;
 import org.w3c.dom.Text;
 
 import java.io.IOException;
+import java.io.InputStream;
 
 import okhttp3.Call;
 import okhttp3.Callback;
@@ -48,9 +53,14 @@ public class WeatherActivity extends AppCompatActivity {
 
     private TextView sportText;
 
+    private ImageView bingPicImg;
+
+    private Bitmap bitmap;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        setContentView(R.layout.activity_weather);
         weatherLayout = (ScrollView) findViewById(R.id.weather_layout);
         titleCity = (TextView) findViewById(R.id.title_city);
         degreeText = (TextView) findViewById(R.id.degree_text);
@@ -62,17 +72,44 @@ public class WeatherActivity extends AppCompatActivity {
         comfortText = (TextView) findViewById(R.id.comfort_text);
         carWashText = (TextView) findViewById(R.id.car_wash_text);
         sportText = (TextView) findViewById(R.id.sport_text);
+        bingPicImg = (ImageView) findViewById(R.id.bing_pic_img);
 
         SharedPreferences sharedPreferences = PreferenceManager.getDefaultSharedPreferences(this);
+
+        String bingPic = sharedPreferences.getString("bing_pic", null);
+        sharedPreferences.edit().remove("bing_Pic");
+        loadBingPic();
+
         String weatherString = sharedPreferences.getString("weather", null);
         if (weatherString != null) {
             Weather weather = Utility.handleWeatherResponse(weatherString);
-
+            showWeatherInfo(weather);
         } else {
             String weatherId = getIntent().getStringExtra("weather_id");
             weatherLayout.setVisibility(View.INVISIBLE);
-
+            requestWeather(weatherId);
         }
+    }
+
+    private void loadBingPic() {
+        String requestBingPic = "https://www.dujin.org/sys/bing/1920.php";
+        HttpUtil.sendOkHttpRequest(requestBingPic, new Callback() {
+            @Override
+            public void onFailure(Call call, IOException e) {
+                e.printStackTrace();
+            }
+
+            @Override
+            public void onResponse(Call call, Response response) throws IOException {
+                final InputStream bingPic = response.body().byteStream();
+                bitmap = BitmapFactory.decodeStream(bingPic);
+
+                runOnUiThread(() -> {
+                    //Glide.with(WeatherActivity.this).load(bitmap).into(bingPicImg);
+                    bingPicImg.setImageBitmap(bitmap);
+                });
+            }
+        });
     }
 
     public void requestWeather(final String weatherId) {
@@ -94,13 +131,14 @@ public class WeatherActivity extends AppCompatActivity {
                         SharedPreferences.Editor editor = PreferenceManager.getDefaultSharedPreferences(WeatherActivity.this).edit();
                         editor.putString("weather", responseText);
                         editor.apply();
-
+                        showWeatherInfo(weather);
                     } else {
                         Toast.makeText(WeatherActivity.this, "获取天气信息失败", Toast.LENGTH_SHORT).show();
                     }
                 });
             }
         });
+        loadBingPic();
     }
 
     public void showWeatherInfo(Weather weather) {
@@ -115,11 +153,13 @@ public class WeatherActivity extends AppCompatActivity {
         forecastLayout.removeAllViews();
         for (Forecast forecast : weather.forecastList) {
             View view = LayoutInflater.from(this).inflate(R.layout.forecast_item, forecastLayout, false);
+
             TextView dateText = (TextView) view.findViewById(R.id.data_text);
             TextView infoText = (TextView) view.findViewById(R.id.info_text);
             TextView maxText = (TextView) view.findViewById(R.id.max_text);
             TextView minText = (TextView) view.findViewById(R.id.minx_text);
-            dateText.setText(forecast.data);
+
+            dateText.setText(forecast.date);
             infoText.setText(forecast.more.info);
             maxText.setText(forecast.temperature.max);
             maxText.setText(forecast.temperature.min);
