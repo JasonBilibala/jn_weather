@@ -22,6 +22,33 @@ android {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
     }
+
+    signingConfigs {
+        config {
+            storeFile file(KEY_PATH)
+            storePassword KEY_PASS
+            keyAlias ALIAS_NAME
+            keyPassword ALIAS_PASS
+        }
+
+        buildTypes {
+            releas {
+                minifyEnabled false
+                proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+                signingConfig signingConfigs.config
+            }
+        }
+
+        productFlavors {
+            qihoo {
+                applicationId "com.jnweather.android.qihoo"
+            }
+
+            baidu {
+                applicationId "com.jnweather.android.baidu"
+            }
+        }
+    }
 }
 
 dependencies {
